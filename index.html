@@ -1,0 +1,293 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#fff;color:#111}
+.wrap{max-width:700px;margin:0 auto;padding:1.5rem 1rem}
+.header{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:3px solid #FFDA00}
+.logo{font-size:20px;font-weight:700;letter-spacing:3px;color:#111}
+.subtitle{font-size:11px;color:#666;margin-top:2px;letter-spacing:1px}
+.progress-bar{display:flex;gap:4px;margin-bottom:.5rem}
+.step-dot{flex:1;height:4px;border-radius:2px;background:#e5e5e5;transition:background .3s}
+.step-dot.done{background:#FFDA00}
+.step-dot.active{background:#111}
+.step-label{font-size:11px;color:#888;margin-bottom:1.25rem;display:flex;justify-content:space-between}
+.block{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:1.25rem;margin-bottom:.5rem}
+.block-title{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:1rem}
+.field{margin-bottom:1rem}
+.field:last-child{margin-bottom:0}
+label{display:block;font-size:13px;color:#555;margin-bottom:4px}
+.req{color:#FFDA00;font-weight:700}
+input,select,textarea{width:100%;font-size:14px;padding:8px 10px;border:1px solid #ddd;border-radius:6px;background:#fafafa;color:#111;font-family:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#FFDA00;background:#fff}
+textarea{resize:vertical;min-height:80px;line-height:1.6}
+.auto-badge{font-size:10px;background:#FFDA00;color:#000;padding:2px 7px;border-radius:4px;margin-left:6px;font-weight:600;vertical-align:middle}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.dynamic-list{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.dynamic-item{display:flex;gap:6px}
+.dynamic-item input{flex:1}
+.btn-remove{background:#fff;border:1px solid #ddd;border-radius:6px;width:34px;height:36px;cursor:pointer;color:#999;font-size:18px;flex-shrink:0;line-height:1}
+.btn-remove:hover{border-color:#ccc;color:#333}
+.btn-add{background:#fff;border:1px dashed #ccc;border-radius:6px;padding:7px;font-size:13px;cursor:pointer;color:#888;width:100%}
+.btn-add:hover{border-color:#999;color:#333}
+.auto-box{background:#fafafa;border:1px solid #e5e5e5;border-radius:6px;padding:10px;font-size:13px;line-height:1.6;color:#666;min-height:40px}
+.nav{display:flex;justify-content:space-between;margin-top:1.25rem}
+.btn-back{padding:9px 20px;border:1px solid #ddd;border-radius:6px;background:#fff;font-size:14px;cursor:pointer;font-weight:500}
+.btn-back:hover{background:#f5f5f5}
+.btn-next{padding:9px 22px;border:none;border-radius:6px;background:#FFDA00;color:#000;font-size:14px;cursor:pointer;font-weight:600}
+.btn-next:hover{background:#e6c400}
+.btn-generate{background:#111;border:none;color:#FFDA00;padding:11px 28px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600}
+.btn-generate:hover{background:#333}
+.output-box{background:#fafafa;border:1px solid #e5e5e5;border-radius:8px;padding:1.25rem;font-size:12.5px;line-height:1.9;white-space:pre-wrap;font-family:monospace;color:#111;max-height:440px;overflow-y:auto;margin-top:.75rem}
+.btn-copy{background:#FFDA00;border:none;color:#000;padding:9px 22px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;margin-top:10px}
+.btn-copy:hover{background:#e6c400}
+.checks{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.checks label{display:flex;align-items:center;gap:5px;font-size:13px;color:#333;cursor:pointer;font-weight:400}
+</style></head><body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="logo">BERTECH<sup style="font-size:10px;font-weight:400">®</sup></div>
+      <div class="subtitle">WE MAKE IT SIMPLE &nbsp;·&nbsp; Descriptor de Cargo</div>
+    </div>
+  </div>
+  <div class="progress-bar" id="pb"></div>
+  <div class="step-label"><span id="sName"></span><span id="sCount"></span></div>
+  <div id="formArea"></div>
+  <div class="nav" id="navArea"></div>
+</div>
+
+<script>
+// === Integração SharePoint (Power Automate) ===
+// 1) Crie um Flow com gatilho: 'When an HTTP request is received'
+// 2) No Flow, use 'Create file' (SharePoint) e retorne webUrl no Response
+// 3) Cole abaixo a URL do Flow (HTTP POST)
+const FLOW_URL = 'COLE_AQUI_A_URL_DO_SEU_FLOW';
+
+function slugFileName(s){
+  return (s || '')
+    .trim()
+    .replace(/[\\\/:*?"<>|]/g,'')
+    .replace(/\s+/g,' ')
+    .substring(0,120);
+}
+
+async function finalizarSalvarSharePoint(){
+  try{
+    // garante que d esteja atualizado
+    if (typeof sync === 'function') sync();
+
+    const outEl = document.getElementById('outTxt');
+    const content = outEl ? outEl.textContent : '';
+
+    const fechaISO = new Date().toISOString().slice(0,10); // yyyy-mm-dd
+    const cargoTitle = slugFileName((typeof d !== 'undefined' && d.cargo) ? d.cargo : 'Descriptor');
+    const fileName = `Descriptor - ${cargoTitle} - ${fechaISO}.txt`;
+
+    if(!FLOW_URL || FLOW_URL.includes('COLE_AQUI')){
+      alert('Cole a URL do Power Automate em FLOW_URL antes de usar o botão Finalizar.');
+      return;
+    }
+
+    const payload = {
+      fileName,
+      title: (typeof d !== 'undefined' && d.cargo) ? d.cargo : 'Descriptor',
+      content,
+      data: (typeof d !== 'undefined') ? d : {}
+    };
+
+    const btn = document.getElementById('btnFinalizar');
+    if(btn){ btn.disabled = true; btn.textContent = 'Salvando…'; }
+
+    const resp = await fetch(FLOW_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if(!resp.ok) throw new Error('Falha ao chamar o Flow (HTTP ' + resp.status + ')');
+    const r = await resp.json().catch(() => ({}));
+
+    const msg = r.webUrl ? `Salvo no SharePoint: ${fileName}` : `Salvo (retorno sem link): ${fileName}`;
+    alert(msg);
+    if(r.webUrl) window.open(r.webUrl, '_blank');
+
+  } catch(e){
+    alert('Erro ao salvar no SharePoint: ' + (e && e.message ? e.message : e));
+  } finally {
+    const btn = document.getElementById('btnFinalizar');
+    if(btn){ btn.disabled = false; btn.textContent = 'Finalizar (Salvar no SharePoint)'; }
+  }
+}
+// === Fim integração SharePoint ===
+
+const NV=[{id:'n1',label:'N1 — Co-CEO / Director Ejecutivo'},{id:'n2',label:'N2 — Country Manager / Director de Área'},{id:'n3',label:'N3 — Jefe de Área / Gerente'},{id:'n4',label:'N4 — Profesional Senior / Coordinador'},{id:'n5',label:'N5 — Profesional / Analista'},{id:'n6',label:'N6 — Técnico / Operador'},{id:'n7',label:'N7 — Auxiliar / Soporte'}];
+const AU={n1:'Decisión autónoma total sobre estrategia, estructura, inversiones y representación corporativa. Aprueba políticas y presupuestos globales sin restricción.',n2:'Decisión autónoma sobre operaciones del país o área. Aprueba inversiones y contratos dentro de límites presupuestarios aprobados por el nivel corporativo. Define estructura de su equipo.',n3:'Decisión operativa sobre su área de gestión. Aprueba gastos dentro de su presupuesto. Propone contrataciones y cambios estructurales, con aprobación N2.',n4:'Decisión técnica y operativa en su ámbito de especialidad. Coordina recursos y proveedores menores. Cambios relevantes requieren validación N3.',n5:'Ejecución autónoma de tareas asignadas. Toma decisiones menores en el día a día. Escala situaciones fuera de su alcance al jefe directo.',n6:'Ejecución de instrucciones técnicas bajo supervisión directa. Autoridad limitada a su puesto de trabajo. Cualquier desviación debe ser reportada.',n7:'Sin autoridad de decisión. Sigue procedimientos establecidos y reporta cualquier situación al supervisor inmediato.'};
+const UN=['Bertech Panamá','Bertech Chile','Bertech Brasil','Los Navegantes Américas (Holding)'];
+const AR=['Dirección General','Operaciones y Logística','Ventas y Desarrollo de Negocios','Marketing y Producto','Finanzas y Administración','Investigación y Desarrollo (R&D)','Recursos Humanos','Tecnología e Informática','Legal y Cumplimiento'];
+const ES=['Activo','En creación','Suspendido','Congelado','Eliminado'];
+const BA=['B1 — Ejecutivo','B2 — Director','B3 — Gerencia / Jefatura','B4 — Profesional Senior','B5 — Profesional','B6 — Técnico','B7 — Operativo / Soporte'];
+const MO=['Presencial','Híbrido','Remoto'];
+const PA=['Panamá','Chile','Brasil','Otro'];
+const ID=['Español','Inglés','Portugués','Francés','Otros'];
+const VI=['No','Ocasional (hasta 25%)','Frecuente (25-50%)','Alta (más del 50%)'];
+const STEPS=['Identificación','Propósito','Responsabilidades','Entregables','Alcance de Autoridad','Perfil del Candidato','Condiciones Laborales'];
+
+const d={cargo:'',nivel:'',unidad:'',area:'',estado:'',banda:'',proposito:'',responsabilidades:[''],entregables:[''],autonomia_texto:'',educacion:'',experiencia:'',competencias:[''],idiomas:[],modalidad:'',ubicacion:'',viajes:'No',disponibilidad:''};
+let step=0;
+
+function selHtml(id,opts,val,ph='Seleccionar...'){return `<select id="${id}" onchange="sv('${id}',this.value)"><option value="">${ph}</option>${opts.map(o=>typeof o==='object'?`<option value="${o.id}"${val===o.id?' selected':''}>${o.label}</option>`:`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}</select>`;}
+function inpHtml(id,val,ph){return `<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph||''}" oninput="sv('${id}',this.value)">`;}
+function taHtml(id,val,ph){return `<textarea id="${id}" placeholder="${ph||''}" oninput="sv('${id}',this.value)">${val||''}</textarea>`;}
+function dynHtml(key,items,ph){return `<div class="dynamic-list">${items.map((v,i)=>`<div class="dynamic-item"><input value="${(v||'').replace(/"/g,'&quot;')}" placeholder="${ph}" oninput="sl('${key}',${i},this.value)"><button class="btn-remove" onclick="ri('${key}',${i})">×</button></div>`).join('')}</div><button class="btn-add" onclick="ai('${key}')">+ Agregar</button>`;}
+
+function sv(k,v){d[k]=v;}
+function sl(k,i,v){d[k][i]=v;}
+function ai(k){d[k].push('');rStep();}
+function ri(k,i){if(d[k].length>1){d[k].splice(i,1);rStep();}}
+function ti(l,c){if(c){if(!d.idiomas.includes(l))d.idiomas.push(l);}else{d.idiomas=d.idiomas.filter(x=>x!==l);}}
+
+function sync(){
+  ['cargo','nivel','unidad','area','estado','banda','proposito','autonomia_texto','educacion','experiencia','modalidad','ubicacion','viajes','disponibilidad'].forEach(k=>{const e=document.getElementById(k);if(e)d[k]=e.value;});
+}
+
+function rProg(){
+  document.getElementById('pb').innerHTML=STEPS.map((_,i)=>`<div class="step-dot ${i<step?'done':i===step?'active':''}"></div>`).join('');
+  document.getElementById('sName').textContent=STEPS[step];
+  document.getElementById('sCount').textContent=`Paso ${step+1} de ${STEPS.length}`;
+}
+
+function rStep(){
+  let h='';
+  if(step===0){
+    h=`<div class="block"><div class="block-title">Bloque 1 — Identificación del cargo</div>
+    <div class="field"><label>Nombre del cargo <span class="req">*</span></label>${inpHtml('cargo',d.cargo,'Ej: Jefe de Logística')}</div>
+    <div class="grid2"><div class="field"><label>Unidad organizacional <span class="req">*</span></label>${selHtml('unidad',UN,d.unidad)}</div><div class="field"><label>Área funcional <span class="req">*</span></label>${selHtml('area',AR,d.area)}</div></div>
+    <div class="grid3"><div class="field"><label>Nivel jerárquico <span class="req">*</span></label>${selHtml('nivel',NV,d.nivel)}</div><div class="field"><label>Estado del cargo</label>${selHtml('estado',ES,d.estado)}</div><div class="field"><label>Banda salarial</label>${selHtml('banda',BA,d.banda)}</div></div></div>`;
+  } else if(step===1){
+    h=`<div class="block"><div class="block-title">Bloque 2 — Propósito del cargo</div>
+    <div class="field"><label>¿Para qué existe este cargo? Describa en 2-4 oraciones su razón de ser. <span class="req">*</span></label>${taHtml('proposito',d.proposito,'El cargo existe para...')}</div></div>`;
+  } else if(step===2){
+    h=`<div class="block"><div class="block-title">Bloque 3 — Responsabilidades principales</div>
+    <div class="field"><label>Liste las responsabilidades clave (al menos 1) <span class="req">*</span></label>${dynHtml('responsabilidades',d.responsabilidades,'Ej: Gestionar el proceso de despacho...')}</div></div>`;
+  } else if(step===3){
+    h=`<div class="block"><div class="block-title">Bloque 4 — Entregables clave</div>
+    <div class="field"><label>¿Qué produce o entrega este cargo? <span class="req">*</span></label>${dynHtml('entregables',d.entregables,'Ej: Reporte semanal de despachos...')}</div></div>`;
+  } else if(step===4){
+    const nObj=NV.find(n=>n.id===d.nivel);
+    const txt=d.autonomia_texto||(d.nivel?AU[d.nivel]:'');
+    h=`<div class="block"><div class="block-title">Bloque 5 — Alcance de autoridad</div>
+    <div class="field"><label>Nivel seleccionado <span class="auto-badge">Autocompletado</span></label>
+    <div class="auto-box">${nObj?nObj.label:'<em style="color:#aaa">Seleccione el nivel en el Bloque 1 para autocompletar</em>'}</div></div>
+    <div class="field"><label>Texto de autonomía (editable)</label><textarea id="autonomia_texto" oninput="sv('autonomia_texto',this.value)">${txt}</textarea></div></div>`;
+  } else if(step===5){
+    const chk=ID.map(l=>`<label><input type="checkbox"${d.idiomas.includes(l)?' checked':''} onchange="ti('${l}',this.checked)"> ${l}</label>`).join('');
+    h=`<div class="block"><div class="block-title">Bloque 6 — Perfil del candidato</div>
+    <div class="grid2"><div class="field"><label>Formación académica</label>${inpHtml('educacion',d.educacion,'Ej: Ingeniería Industrial')}</div><div class="field"><label>Experiencia requerida</label>${inpHtml('experiencia',d.experiencia,'Ej: Mínimo 3 años en logística')}</div></div>
+    <div class="field"><label>Competencias clave</label>${dynHtml('competencias',d.competencias,'Ej: Liderazgo de equipos operativos')}</div>
+    <div class="field"><label>Idiomas</label><div class="checks">${chk}</div></div></div>`;
+  } else if(step===6){
+    h=`<div class="block"><div class="block-title">Bloque 7 — Condiciones laborales</div>
+    <div class="grid3"><div class="field"><label>Modalidad</label>${selHtml('modalidad',MO,d.modalidad)}</div><div class="field"><label>País de ubicación</label>${selHtml('ubicacion',PA,d.ubicacion)}</div><div class="field"><label>Disponibilidad para viajar</label>${selHtml('viajes',VI,d.viajes)}</div></div>
+    <div class="field"><label>Otras condiciones</label>${taHtml('disponibilidad',d.disponibilidad,'Ej: Horario administrativo, disponibilidad fines de semana')}</div></div>
+    <div style="text-align:center;margin-top:1.25rem"><button class="btn-generate" onclick="genOut()">Generar descriptor completo →</button></div>`;
+  }
+  document.getElementById('formArea').innerHTML=h;
+}
+
+function rNav(){
+  document.getElementById('navArea').innerHTML=`${step>0?`<button class="btn-back" onclick="goBack()">← Anterior</button>`:'<span></span>'}${step<6?`<button class="btn-next" onclick="goNext()">Siguiente →</button>`:'<span></span>'}`;
+}
+
+function validate(){
+  sync();
+  if(step===0)return d.cargo.trim()&&d.nivel&&d.unidad&&d.area;
+  if(step===1)return d.proposito.trim().length>10;
+  if(step===2)return d.responsabilidades.filter(r=>r.trim()).length>=1;
+  if(step===3)return d.entregables.filter(e=>e.trim()).length>=1;
+  return true;
+}
+
+function goNext(){if(!validate()){alert('Por favor completa los campos obligatorios (marcados con *).');return;}step++;rProg();rStep();rNav();window.scrollTo(0,0);}
+function goBack(){sync();step--;rProg();rStep();rNav();window.scrollTo(0,0);}
+
+function genOut(){
+  sync();
+  const nObj=NV.find(n=>n.id===d.nivel);
+  const autoTxt=d.autonomia_texto||(d.nivel?AU[d.nivel]:'—');
+  const resps=d.responsabilidades.filter(r=>r.trim()).map((r,i)=>`   ${i+1}. ${r}`).join('\n')||'   —';
+  const entrs=d.entregables.filter(e=>e.trim()).map((e,i)=>`   ${i+1}. ${e}`).join('\n')||'   —';
+  const comps=d.competencias.filter(c=>c.trim()).map(c=>`   • ${c}`).join('\n')||'   —';
+  const ids=d.idiomas.length?d.idiomas.join(', '):'No especificado';
+  const fecha=new Date().toLocaleDateString('es-CL',{day:'2-digit',month:'long',year:'numeric'});
+  const out=`════════════════════════════════════════════════════════
+DESCRIPTOR DE CARGO — GRUPO BERTECH
+════════════════════════════════════════════════════════
+Fecha de emisión: ${fecha}
+Estado: ${d.estado||'—'}
+
+────────────────────────────────────────────────────────
+BLOQUE 1 — IDENTIFICACIÓN DEL CARGO
+────────────────────────────────────────────────────────
+Nombre del cargo:      ${d.cargo||'—'}
+Unidad organizacional: ${d.unidad||'—'}
+Área funcional:        ${d.area||'—'}
+Nivel jerárquico:      ${nObj?nObj.label:'—'}
+Banda salarial:        ${d.banda||'—'}
+
+────────────────────────────────────────────────────────
+BLOQUE 2 — PROPÓSITO DEL CARGO
+────────────────────────────────────────────────────────
+${d.proposito||'—'}
+
+────────────────────────────────────────────────────────
+BLOQUE 3 — RESPONSABILIDADES PRINCIPALES
+────────────────────────────────────────────────────────
+${resps}
+
+────────────────────────────────────────────────────────
+BLOQUE 4 — ENTREGABLES CLAVE
+────────────────────────────────────────────────────────
+${entrs}
+
+────────────────────────────────────────────────────────
+BLOQUE 5 — ALCANCE DE AUTORIDAD
+────────────────────────────────────────────────────────
+${autoTxt}
+
+────────────────────────────────────────────────────────
+BLOQUE 6 — PERFIL DEL CANDIDATO
+────────────────────────────────────────────────────────
+Formación académica:   ${d.educacion||'—'}
+Experiencia requerida: ${d.experiencia||'—'}
+Idiomas:               ${ids}
+
+Competencias clave:
+${comps}
+
+────────────────────────────────────────────────────────
+BLOQUE 7 — CONDICIONES LABORALES
+────────────────────────────────────────────────────────
+Modalidad:             ${d.modalidad||'—'}
+Ubicación:             ${d.ubicacion||'—'}
+Disponibilidad viajes: ${d.viajes||'—'}
+Otras condiciones:     ${d.disponibilidad||'—'}
+
+════════════════════════════════════════════════════════
+Documento generado con el Generador Oficial de Descriptores
+de Cargo de Grupo Bertech. Para uso interno.
+════════════════════════════════════════════════════════`;
+
+  document.getElementById('formArea').innerHTML=`<div class="block"><div class="block-title">Descriptor generado — listo para copiar</div><div class="output-box" id="outTxt">${out}</div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn-copy" onclick="copyOut()">Copiar texto</button><button class="btn-copy" id="btnFinalizar" onclick="finalizarSalvarSharePoint()">Finalizar (Salvar no SharePoint)</button><button class="btn-back" onclick="step=6;rProg();rStep();rNav()">← Editar</button></div></div>`;
+  document.getElementById('navArea').innerHTML='';
+  document.getElementById('pb').querySelectorAll('.step-dot').forEach(x=>{x.classList.add('done');x.classList.remove('active');});
+}
+
+function copyOut(){
+  navigator.clipboard.writeText(document.getElementById('outTxt').textContent).then(()=>{
+    const b=document.querySelector('.btn-copy');b.textContent='¡Copiado!';setTimeout(()=>{b.textContent='Copiar texto';},2000);
+  });
+}
+
+rProg();rStep();rNav();
+</script>
+</body></html>
